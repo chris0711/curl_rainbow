@@ -13,7 +13,6 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-
 # Factorised NoisyLinear layer with bias
 class NoisyLinear(nn.Module):
   def __init__(self, in_features, out_features, std_init=0.5):
@@ -55,6 +54,7 @@ class NoisyLinear(nn.Module):
       return F.linear(input, self.weight_mu, self.bias_mu)
 
 
+
 class DQN(nn.Module):
   def __init__(self, args, action_space):
     super(DQN, self).__init__()
@@ -81,16 +81,18 @@ class DQN(nn.Module):
     self.b_c = nn.Parameter(torch.zeros(128))
     self.W = nn.Parameter(torch.rand(128, 128))
 
+    self.args = args
+
   def forward(self, x, log=False):
     x = self.convs(x)
     x = x.view(-1, self.conv_output_size)
     v = self.fc_z_v(F.relu(self.fc_h_v(x)))  # Value stream
     a = self.fc_z_a(F.relu(self.fc_h_a(x)))  # Advantage stream
     h = torch.matmul(x, self.W_h) + self.b_h # Contrastive head
-    h = nn.LayerNorm(h.shape[1])(h)
+    h = nn.LayerNorm(h.shape[1]).to(self.args.device)(h)
     h = F.relu(h)
     h = torch.matmul(h, self.W_c) + self.b_c # Contrastive head
-    h = nn.LayerNorm(128)(h)
+    h = nn.LayerNorm(128).to(self.args.device)(h)
     v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)
     q = v + a - a.mean(1, keepdim=True)  # Combine streams
     if log:  # Use log softmax for numerical stability
